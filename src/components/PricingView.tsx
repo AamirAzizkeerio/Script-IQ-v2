@@ -500,7 +500,7 @@ export default function PricingView({ onNavigate, density = 'compact' }: Pricing
             <div>
               <h4 className="font-sans font-bold text-sm text-slate-900">100% Risk-Free Guarantee</h4>
               <p className="font-sans text-xs text-slate-500 mt-1 leading-relaxed">
-                If ScriptIQ doesn't increase your YouTube average view duration or make scripting 10x faster within your first 07 days, just drop us an email via the contact form and we'll issue a <strong>100% instant refund</strong>. No tedious loops, no hard feelings.
+                If ScriptIQ doesn't increase your YouTube average view duration or make scripting 10x faster within your first 14 days, just drop us an email via the contact form and we'll issue a <strong>100% instant refund</strong>. No tedious loops, no hard feelings.
               </p>
             </div>
           </div>
