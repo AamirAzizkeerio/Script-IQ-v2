@@ -1,0 +1,114 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User account settings, subscription status, and generation usage statistics.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Unique user ID from Firebase Auth."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the user."
+        },
+        "plan": {
+          "type": "string",
+          "description": "Subscription tier: 'free', 'pro', or 'studio'."
+        },
+        "usageCount": {
+          "type": "number",
+          "description": "Number of script generations utilized in the current billing month."
+        },
+        "lastUsageReset": {
+          "type": "string",
+          "description": "Year-month string (e.g. '2026-07') of the last usage count reset."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the user account was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the user profile was last updated."
+        }
+      },
+      "required": ["uid", "email", "plan", "usageCount", "lastUsageReset", "createdAt", "updatedAt"]
+    },
+    "SavedScript": {
+      "title": "Saved Script",
+      "description": "A YouTube script or title generation saved to the user's history.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the script document."
+        },
+        "userId": {
+          "type": "string",
+          "description": "ID of the user who owns the script."
+        },
+        "title": {
+          "type": "string",
+          "description": "The generated title or primary hook."
+        },
+        "topic": {
+          "type": "string",
+          "description": "The user's original input prompt/topic."
+        },
+        "script": {
+          "type": "string",
+          "description": "The complete generated script or alternative titles content."
+        },
+        "type": {
+          "type": "string",
+          "description": "The type of content generated ('script' or 'title')."
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of script generation."
+        }
+      },
+      "required": ["id", "userId", "title", "topic", "script", "timestamp"]
+    },
+    "NewsletterSignup": {
+      "title": "Newsletter Signup",
+      "description": "Captures emails of visitors subscribing to the product newsletter.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Auto-generated document ID."
+        },
+        "email": {
+          "type": "string",
+          "description": "Subscribed email address."
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when signed up."
+        }
+      },
+      "required": ["id", "email", "timestamp"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "User profiles with billing and usage details."
+    },
+    "savedScripts/{scriptId}": {
+      "schema": "SavedScript",
+      "description": "Generated scripts and titles linked to user accounts."
+    },
+    "newsletterSignups/{signupId}": {
+      "schema": "NewsletterSignup",
+      "description": "Store newsletter subscription emails."
+    }
+  }
+}

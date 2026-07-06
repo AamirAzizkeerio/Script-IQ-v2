@@ -1,0 +1,102 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net (default-deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- HELPER FUNCTIONS ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // --- USERS COLLECTION ---
+    match /users/{userId} {
+      allow get: if isSignedIn() && request.auth.uid == userId;
+      
+      allow create: if isSignedIn() 
+        && request.auth.uid == userId
+        && incoming().uid == userId
+        && incoming().email is string
+        && incoming().plan == 'free'
+        && incoming().usageCount == 0
+        && incoming().lastUsageReset is string
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isSignedIn()
+        && request.auth.uid == userId
+        && incoming().uid == userId
+        && incoming().email == existing().email
+        && incoming().createdAt == existing().createdAt
+        && (incoming().plan == 'free' || incoming().plan == 'pro' || incoming().plan == 'studio') // Allow sandbox upgrades
+        && incoming().updatedAt == request.time
+        && (incoming().plan == 'free' ? incoming().usageCount <= 3 : true)
+        // Can only increment usageCount, reset to 0, or keep same, or change plan
+        && (
+          incoming().usageCount == existing().usageCount 
+          || incoming().usageCount == existing().usageCount + 1 
+          || (incoming().usageCount == 0 && incoming().lastUsageReset != existing().lastUsageReset)
+          || incoming().plan != existing().plan
+        );
+    }
+
+    // --- SAVED SCRIPTS COLLECTION ---
+    match /savedScripts/{scriptId} {
+      allow get, delete: if isSignedIn() 
+        && resource.data.userId == request.auth.uid;
+
+      allow list: if isSignedIn() 
+        && resource.data.userId == request.auth.uid;
+
+      allow create: if isSignedIn()
+        && isValidId(scriptId)
+        && incoming().id == scriptId
+        && incoming().userId == request.auth.uid
+        && incoming().title is string && incoming().title.size() <= 1000
+        && incoming().topic is string && incoming().topic.size() <= 5000
+        && incoming().script is string && incoming().script.size() <= 100000
+        && incoming().description is string && incoming().description.size() <= 10000
+        && incoming().category is string && incoming().category.size() <= 500
+        && incoming().keywords is list
+        && incoming().timestamp == request.time;
+
+      allow update: if isSignedIn()
+        && isValidId(scriptId)
+        && existing().userId == request.auth.uid
+        && incoming().id == scriptId
+        && incoming().userId == request.auth.uid
+        && incoming().title is string && incoming().title.size() <= 1000
+        && incoming().topic is string && incoming().topic.size() <= 5000
+        && incoming().script is string && incoming().script.size() <= 100000
+        && incoming().description is string && incoming().description.size() <= 10000
+        && incoming().category is string && incoming().category.size() <= 500
+        && incoming().keywords is list
+        && incoming().timestamp == existing().timestamp; // Timestamp remains creation time or unchanged
+    }
+
+    // --- NEWSLETTER SIGNUPS COLLECTION ---
+    match /newsletterSignups/{signupId} {
+      allow create: if isValidId(signupId)
+        && incoming().id == signupId
+        && incoming().email is string && incoming().email.size() <= 200 && incoming().email.matches('^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$')
+        && incoming().timestamp == request.time;
+
+      allow read, update, delete: if false;
+    }
+  }
+}

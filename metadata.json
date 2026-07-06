@@ -1,0 +1,6 @@
+{
+  "name": "ScriptIQ",
+  "description": "ScriptIQ is an AI script writer for YouTube, free YouTube script generator, and AI YouTube title generator helping creators with high-retention video script outlines, video ideas, and CTR optimization.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
