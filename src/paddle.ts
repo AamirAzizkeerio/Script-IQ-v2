@@ -1,8 +1,8 @@
-import { initializePaddle } from '@paddle/paddle-js';
+import { initializePaddle, type Paddle } from '@paddle/paddle-js';
 
 const PADDLE_CLIENT_TOKEN = import.meta.env.VITE_PADDLE_CLIENT_TOKEN || 'live_23f2ec86b3f86b393f7266ffe51';
 
-let paddleInitializationPromise = null;
+let paddleInitializationPromise: Promise<Paddle | undefined> | null = null;
 
 export function initializePaddleClient() {
   if (typeof window === 'undefined') {
@@ -21,7 +21,11 @@ export function initializePaddleClient() {
   return paddleInitializationPromise;
 }
 
-export async function openPaddleCheckout(options) {
+export async function openPaddleCheckout(options: {
+  priceId: string;
+  customerEmail?: string;
+  successUrl?: string;
+}) {
   const paddle = await initializePaddleClient();
 
   if (!paddle?.Checkout?.open) {
@@ -40,7 +44,7 @@ export async function openPaddleCheckout(options) {
   return true;
 }
 
-export async function openCheckout(priceId, userEmail, userId) {
+export async function openCheckout(priceId: string, userEmail?: string, userId?: string) {
   return openPaddleCheckout({
     priceId,
     customerEmail: userEmail,

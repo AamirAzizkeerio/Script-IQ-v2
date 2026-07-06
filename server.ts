@@ -167,6 +167,14 @@ The script must have visual instructions formatted as [VISUAL: ...] and audio pr
     }
   });
 
+  app.get(['/home', '/home/'], (req, res) => {
+    res.redirect(301, '/');
+  });
+
+  app.get(['/youtube-title-generator', '/youtube-title-generator/'], (req, res) => {
+    res.redirect(301, '/title-generator');
+  });
+
   // Serve Vite in development, static files in production
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

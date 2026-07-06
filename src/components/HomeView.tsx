@@ -486,6 +486,15 @@ export default function HomeView({ onNavigate, density = 'compact' }: HomeViewPr
                 </button>
               </motion.div>
 
+              <motion.div
+                variants={itemVariants}
+                className="flex flex-wrap items-center justify-center lg:justify-start gap-3 pt-1 text-sm"
+              >
+                <a href="/" className="font-medium text-[#4F46E5] hover:text-[#4338CA]">Visit the ScriptIQ home page</a>
+                <a href="/pricing" className="font-medium text-slate-600 hover:text-slate-900">See pricing</a>
+                <a href="/title-generator" className="font-medium text-slate-600 hover:text-slate-900">Try the title generator</a>
+              </motion.div>
+
               {/* Minimalist social proof */}
               <motion.div 
                 variants={itemVariants}

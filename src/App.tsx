@@ -17,9 +17,59 @@ import AIPresentationRobot from './components/AIPresentationRobot';
 import PricingView from './components/PricingView';
 import { useAuth } from './components/AuthContext';
 
+const getViewFromPath = (pathname: string): PageView => {
+  const normalizedPath = pathname.replace(/\/$/, '') || '/';
+
+  switch (normalizedPath) {
+    case '/pricing':
+      return 'pricing';
+    case '/title-generator':
+    case '/youtube-title-generator':
+      return 'title-generator';
+    case '/privacy':
+      return 'privacy';
+    case '/terms':
+      return 'terms';
+    case '/refund':
+      return 'refund';
+    case '/signin':
+      return 'signin';
+    case '/dashboard':
+      return 'dashboard';
+    default:
+      return 'home';
+  }
+};
+
+const getRouteForView = (view: PageView): string => {
+  switch (view) {
+    case 'pricing':
+      return '/pricing';
+    case 'title-generator':
+      return '/title-generator';
+    case 'privacy':
+      return '/privacy';
+    case 'terms':
+      return '/terms';
+    case 'refund':
+      return '/refund';
+    case 'signin':
+      return '/signin';
+    case 'dashboard':
+      return '/dashboard';
+    default:
+      return '/';
+  }
+};
+
 export default function App() {
   const { user, loading } = useAuth();
-  const [view, setView] = useState<PageView>('home');
+  const [view, setView] = useState<PageView>(() => {
+    if (typeof window !== 'undefined') {
+      return getViewFromPath(window.location.pathname);
+    }
+    return 'home';
+  });
   const [userEmail, setUserEmail] = useState('amirkeerio3@gmail.com');
   const [authRedirectMessage, setAuthRedirectMessage] = useState<string | null>(null);
   const [density, setDensity] = useState<'compact' | 'comfortable'>('compact');
@@ -60,6 +110,10 @@ export default function App() {
     }
 
     setView(targetView);
+    const route = getRouteForView(targetView);
+    if (typeof window !== 'undefined' && window.location.pathname !== route) {
+      window.history.pushState({}, '', route);
+    }
     
     if (sectionId) {
       if (targetView === 'home') {
@@ -103,6 +157,57 @@ export default function App() {
   // Scroll to top on standard page change
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [view]);
+
+  useEffect(() => {
+    const syncViewFromLocation = () => {
+      setView(getViewFromPath(window.location.pathname));
+    };
+
+    window.addEventListener('popstate', syncViewFromLocation);
+    return () => window.removeEventListener('popstate', syncViewFromLocation);
+  }, []);
+
+  useEffect(() => {
+    const route = getRouteForView(view);
+    if (typeof window !== 'undefined' && window.location.pathname !== route) {
+      window.history.replaceState({}, '', route);
+    }
+
+    const titleMap: Record<PageView, string> = {
+      home: 'ScriptIQ | AI YouTube Script Writer & Title Generator',
+      pricing: 'Pricing | ScriptIQ',
+      signin: 'Sign In | ScriptIQ',
+      dashboard: 'Dashboard | ScriptIQ',
+      privacy: 'Privacy Policy | ScriptIQ',
+      terms: 'Terms of Service | ScriptIQ',
+      refund: 'Refund Policy | ScriptIQ',
+      notfound: 'Page Not Found | ScriptIQ',
+      'title-generator': 'YouTube Title Generator | ScriptIQ'
+    };
+
+    const descriptionMap: Record<PageView, string> = {
+      home: 'ScriptIQ helps creators write YouTube scripts, SEO titles, hooks, and outlines in seconds with an AI-powered workflow.',
+      pricing: 'Explore clear pricing for ScriptIQ and see how AI-powered scripting tools support creator workflows.',
+      signin: 'Sign in to ScriptIQ to access your creator dashboard and saved content workflows.',
+      dashboard: 'Open the ScriptIQ dashboard to manage your AI-generated scripts, titles, and ideas.',
+      privacy: 'Read the ScriptIQ privacy policy to learn how your data is handled on the platform.',
+      terms: 'Review the ScriptIQ terms of service before using the platform.',
+      refund: 'See ScriptIQ refund terms and usage guidance for creator tools.',
+      notfound: 'The requested page could not be found on ScriptIQ.',
+      'title-generator': 'Use the ScriptIQ title generator to create compelling, SEO-friendly YouTube titles in seconds.'
+    };
+
+    document.title = titleMap[view] || 'ScriptIQ';
+    const descriptionTag = document.querySelector('meta[name="description"]');
+    if (descriptionTag) {
+      descriptionTag.setAttribute('content', descriptionMap[view] || descriptionMap.home);
+    }
+
+    const canonicalTag = document.querySelector('link[rel="canonical"]');
+    if (canonicalTag) {
+      canonicalTag.setAttribute('href', `https://www.scriptiq.site${route}`);
+    }
   }, [view]);
 
   // Determine if general layout chrome (Navbar & Footer) should be shown

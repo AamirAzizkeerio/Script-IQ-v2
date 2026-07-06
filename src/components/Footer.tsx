@@ -41,52 +41,57 @@ export default function Footer({ onNavigate, density = 'comfortable' }: FooterPr
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col md:flex-row items-center justify-between gap-8">
           {/* Logo Brand */}
-          <div className="flex items-center gap-2">
+          <a href="/" onClick={(e) => { e.preventDefault(); onNavigate('home'); }} className="flex items-center gap-2">
             <div className="bg-black dark:bg-slate-800 text-white p-1 rounded-md">
               <Sparkles className="w-4 h-4" />
             </div>
             <span className="font-sans text-lg font-bold tracking-tight text-black dark:text-white">
               Script<span className="text-[#4F46E5]">IQ</span>
             </span>
-          </div>
+          </a>
 
           {/* Navigation links */}
           <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4">
-            <button
+            <a
               id="footer-link-privacy"
-              onClick={() => onNavigate('privacy')}
+              href="/privacy"
+              onClick={(e) => { e.preventDefault(); onNavigate('privacy'); }}
               className="font-sans text-sm text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors cursor-pointer"
             >
               Privacy Policy
-            </button>
-            <button
+            </a>
+            <a
               id="footer-link-terms"
-              onClick={() => onNavigate('terms')}
+              href="/terms"
+              onClick={(e) => { e.preventDefault(); onNavigate('terms'); }}
               className="font-sans text-sm text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors cursor-pointer"
             >
               Terms of Service
-            </button>
-            <button
+            </a>
+            <a
               id="footer-link-refund"
-              onClick={() => onNavigate('refund')}
+              href="/refund"
+              onClick={(e) => { e.preventDefault(); onNavigate('refund'); }}
               className="font-sans text-sm text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors cursor-pointer"
             >
               Refund Policy
-            </button>
-            <button
+            </a>
+            <a
               id="footer-link-pricing"
-              onClick={() => onNavigate('pricing')}
+              href="/pricing"
+              onClick={(e) => { e.preventDefault(); onNavigate('pricing'); }}
               className="font-sans text-sm text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors cursor-pointer"
             >
               Pricing Plans
-            </button>
-            <button
+            </a>
+            <a
               id="footer-link-title-generator"
-              onClick={() => onNavigate('title-generator')}
+              href="/title-generator"
+              onClick={(e) => { e.preventDefault(); onNavigate('title-generator'); }}
               className="font-sans text-sm text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors cursor-pointer font-medium text-[#4F46E5] hover:text-[#4338CA]"
             >
               YouTube Title Generator
-            </button>
+            </a>
             <button
               id="footer-link-contact"
               onClick={() => setIsContactOpen(true)}

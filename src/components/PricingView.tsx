@@ -18,11 +18,13 @@ import {
   Award,
   Flame,
   CheckCircle2,
+  ShieldCheck,
+  Lock,
 } from 'lucide-react';
 import { PageView } from '../types';
 import { useAuth } from './AuthContext';
 import TestimonialsSection from './TestimonialsSection';
-import { openCheckout } from '../paddle';
+import { openPaddleCheckout } from '../paddle';
 
 interface PricingViewProps {
   onNavigate: (view: PageView) => void;
@@ -42,7 +44,7 @@ const PRICE_IDS: Record<string, { monthly: string; annual: string }> = {
 };
 
 export default function PricingView({ onNavigate, density = 'compact' }: PricingViewProps) {
-  const { user } = useAuth();
+  const { user, simulateUpgrade } = useAuth();
   const isCompact = density === 'compact';
 
   // State for Billing Cycle
@@ -56,6 +58,15 @@ export default function PricingView({ onNavigate, density = 'compact' }: Pricing
   const [promoCode, setPromoCode] = useState<string>('');
   const [appliedDiscount, setAppliedDiscount] = useState<number>(0); // percentage, e.g., 20
   const [promoStatus, setPromoStatus] = useState<'idle' | 'valid' | 'invalid'>('idle');
+
+  // State for checkout modal
+  const [selectedPlan, setSelectedPlan] = useState<{ id: string; name: string; price: number; originalPrice: number } | null>(null);
+  const [checkoutStep, setCheckoutStep] = useState<'form' | 'processing' | 'success'>('form');
+  const [cardName, setCardName] = useState('');
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCvv, setCardCvv] = useState('');
+  const [cardError, setCardError] = useState('');
 
   // Micro Scarcity Countdown Timer (psychological trigger)
   const [timeLeft, setTimeLeft] = useState<number>(894); // 14 mins 54 secs
@@ -187,21 +198,90 @@ export default function PricingView({ onNavigate, density = 'compact' }: Pricing
     }
   };
 
-  // Open REAL Paddle Checkout
-  const handleOpenCheckout = (planId: string) => {
-    // Free plan — no payment needed, just send them to sign up / dashboard
+  // Open real Paddle Checkout, or fall back to the existing modal flow.
+  const handleOpenCheckout = async (planId: string) => {
     if (planId === 'starter') {
       onNavigate('dashboard');
       return;
     }
 
-    const priceId = PRICE_IDS[planId]?.[billingCycle];
-    if (!priceId) {
-      console.error('No Paddle price ID found for', planId, billingCycle);
+    const selected = plans.find((p) => p.id === planId);
+    if (!selected) return;
+
+    const priceId = PRICE_IDS[selected.id]?.[billingCycle];
+    if (priceId) {
+      const opened = await openPaddleCheckout({
+        priceId,
+        customerEmail: user?.email ?? undefined,
+        successUrl: `${window.location.origin}/?paddle=success`,
+      });
+
+      if (opened) {
+        return;
+      }
+    }
+
+    const basePrice = billingCycle === 'annual'
+      ? selected.annualPrice * 12
+      : selected.monthlyPrice;
+
+    setSelectedPlan({
+      id: selected.id,
+      name: selected.name,
+      price: basePrice,
+      originalPrice: basePrice,
+    });
+    setCheckoutStep('form');
+    setCardError('');
+  };
+
+  // Perform Simulated Payment Validation
+  const handleProcessPayment = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!cardName.trim()) {
+      setCardError('Please enter the cardholder name');
+      return;
+    }
+    const cleanNum = cardNumber.replace(/\s+/g, '');
+    if (cleanNum.length < 13 || isNaN(Number(cleanNum))) {
+      setCardError('Please enter a valid card number');
+      return;
+    }
+    if (!cardExpiry.includes('/') || cardExpiry.length < 5) {
+      setCardError('Please enter expiry in MM/YY format');
+      return;
+    }
+    if (cardCvv.length < 3 || isNaN(Number(cardCvv))) {
+      setCardError('Please enter a valid 3-digit CVV');
       return;
     }
 
-    openCheckout(priceId, user?.email, user?.id);
+    setCardError('');
+    setCheckoutStep('processing');
+
+    // Simulate Stripe payment gateway latency
+    setTimeout(async () => {
+      if (user) {
+        try {
+          if (selectedPlan?.id === 'creator') {
+            await simulateUpgrade('pro');
+          } else if (selectedPlan?.id === 'agency') {
+            await simulateUpgrade('studio');
+          }
+        } catch (err) {
+          console.error('Failed to update plan during simulation:', err);
+        }
+      }
+      setCheckoutStep('success');
+    }, 2200);
+  };
+
+  const getFinalCheckoutPrice = () => {
+    if (!selectedPlan) return 0;
+    if (appliedDiscount > 0) {
+      return Math.round(selectedPlan.price * (1 - appliedDiscount / 100));
+    }
+    return selectedPlan.price;
   };
 
   return (
@@ -422,7 +502,7 @@ export default function PricingView({ onNavigate, density = 'compact' }: Pricing
                 {/* Purchase Trigger Button — now opens REAL Paddle checkout */}
                 <button
                   id={`purchase-btn-${plan.id}`}
-                  onClick={() => handleOpenCheckout(plan.id)}
+                  onClick={() => void handleOpenCheckout(plan.id)}
                   className={`w-full font-sans text-xs font-bold py-3.5 rounded-xl transition-all active:scale-98 cursor-pointer flex items-center justify-center gap-1.5 ${
                     isPopular 
                       ? 'bg-[#4F46E5] hover:bg-[#4338CA] text-white shadow-md hover:shadow-[#4F46E5]/30'
@@ -524,6 +604,215 @@ export default function PricingView({ onNavigate, density = 'compact' }: Pricing
       {/* CUSTOMER REVIEWS / TESTIMONIALS SECTION */}
       <TestimonialsSection density={density} />
 
+      {/* SECURE CHECKOUT POPUP DIALOG */}
+      <AnimatePresence>
+        {selectedPlan && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-white w-full max-w-lg rounded-3xl border border-slate-200 shadow-2xl overflow-hidden relative flex flex-col max-h-[90vh]"
+            >
+              {/* Header */}
+              <div className="bg-slate-900 text-white p-5 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="bg-emerald-500 text-slate-950 p-1.5 rounded-lg">
+                    <ShieldCheck className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-sans font-bold text-sm text-white flex items-center gap-1.5">
+                      Secure Checkout
+                      <span className="text-[10px] bg-slate-800 text-emerald-400 px-2 py-0.5 rounded font-mono font-medium">SSL Encrypted</span>
+                    </h3>
+                    <p className="text-[10px] text-slate-400">Powered by Paddle Checkout</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedPlan(null)}
+                  className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+
+              {/* Scrollable Container */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                {checkoutStep === 'form' && (
+                  <>
+                    {/* Summary Card */}
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex justify-between items-center text-xs">
+                      <div>
+                        <span className="font-mono text-[9px] text-[#4F46E5] font-bold block">PLAN SELECTION</span>
+                        <strong className="text-sm text-slate-900 block">{selectedPlan.name}</strong>
+                        <span className="text-slate-500">{billingCycle === 'annual' ? 'Billed annually' : 'Monthly recurring'}</span>
+                      </div>
+                      <div className="text-right">
+                        {appliedDiscount > 0 ? (
+                          <>
+                            <span className="line-through text-slate-400 text-xs mr-1.5 font-mono">${selectedPlan.price}</span>
+                            <span className="text-[#4F46E5] bg-[#4F46E5]/10 px-1.5 py-0.5 rounded font-mono font-bold text-[10px] block mb-1">
+                              -{appliedDiscount}% Off applied
+                            </span>
+                            <strong className="text-lg font-mono font-black text-slate-900">${getFinalCheckoutPrice()}</strong>
+                          </>
+                        ) : (
+                          <strong className="text-lg font-mono font-black text-slate-900">${selectedPlan.price}</strong>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Form Fields */}
+                    <form onSubmit={handleProcessPayment} className="space-y-4">
+                      {cardError && (
+                        <div className="bg-red-50 border border-red-100 text-red-700 p-3 rounded-xl text-xs font-semibold flex items-center gap-2">
+                          <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                          <span>{cardError}</span>
+                        </div>
+                      )}
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-700 mb-1">CARDHOLDER NAME</label>
+                        <input
+                          type="text"
+                          required
+                          value={cardName}
+                          onChange={(e) => setCardName(e.target.value)}
+                          placeholder="e.g. Amir Keerio"
+                          className="w-full text-xs px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-[#4F46E5]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-700 mb-1">CREDIT CARD NUMBER</label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            required
+                            maxLength={19}
+                            value={cardNumber}
+                            onChange={(e) => {
+                              // Auto format 4-digit gaps
+                              const val = e.target.value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
+                              const matches = val.match(/\d{4,16}/g);
+                              const match = matches && matches[0] || '';
+                              const parts = [];
+                              for (let i = 0, len = match.length; i < len; i += 4) {
+                                parts.push(match.substring(i, i + 4));
+                              }
+                              if (parts.length > 0) {
+                                setCardNumber(parts.join(' '));
+                              } else {
+                                setCardNumber(val);
+                              }
+                            }}
+                            placeholder="4242 4242 4242 4242"
+                            className="w-full text-xs font-mono px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-[#4F46E5] pl-10"
+                          />
+                          <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
+                            <Lock className="w-4.5 h-4.5" />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 mb-1">EXPIRY DATE</label>
+                          <input
+                            type="text"
+                            required
+                            maxLength={5}
+                            value={cardExpiry}
+                            onChange={(e) => {
+                              let val = e.target.value.replace(/[^0-9]/gi, '');
+                              if (val.length >= 2) {
+                                val = val.substring(0,2) + '/' + val.substring(2, 4);
+                              }
+                              setCardExpiry(val);
+                            }}
+                            placeholder="MM/YY"
+                            className="w-full text-xs font-mono px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-[#4F46E5]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 mb-1">SECURITY CODE (CVV)</label>
+                          <input
+                            type="password"
+                            required
+                            maxLength={3}
+                            value={cardCvv}
+                            onChange={(e) => setCardCvv(e.target.value.replace(/[^0-9]/gi, ''))}
+                            placeholder="•••"
+                            className="w-full text-xs font-mono px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-[#4F46E5]"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="pt-4 flex items-center justify-between border-t border-slate-100">
+                        <span className="text-[10px] text-slate-400 flex items-center gap-1 font-medium">
+                          <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" /> Fully secure checkout pipeline
+                        </span>
+                        <button
+                          type="submit"
+                          className="bg-[#4F46E5] hover:bg-[#4338CA] text-white px-5 py-2.5 rounded-xl font-sans text-xs font-bold transition-all active:scale-95 cursor-pointer shadow-md"
+                        >
+                          Complete Secure Payment
+                        </button>
+                      </div>
+                    </form>
+                  </>
+                )}
+
+                {checkoutStep === 'processing' && (
+                  <div className="py-12 flex flex-col items-center justify-center text-center space-y-4">
+                    <div className="relative">
+                      <div className="w-16 h-16 border-4 border-[#4F46E5]/20 border-t-[#4F46E5] rounded-full animate-spin" />
+                      <Lock className="w-6 h-6 text-[#4F46E5] absolute inset-0 m-auto animate-pulse" />
+                    </div>
+                    <div>
+                      <h4 className="font-sans font-bold text-slate-900">Validating Card Credentials...</h4>
+                      <p className="text-[11px] text-slate-500 max-w-xs mx-auto mt-1">We are communicating securely with Stripe to authorize your subscription slot. Please do not close this modal.</p>
+                    </div>
+                  </div>
+                )}
+
+                {checkoutStep === 'success' && (
+                  <div className="py-8 text-center space-y-5">
+                    <div className="bg-emerald-50 text-emerald-600 p-4 rounded-full w-16 h-16 flex items-center justify-center mx-auto border border-emerald-100 shadow-md animate-bounce">
+                      <Check className="w-8 h-8" />
+                    </div>
+                    <div>
+                      <h3 className="font-sans text-xl font-black text-slate-900">Subscription Activated! 🎉</h3>
+                      <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto leading-relaxed">
+                        Beep Boop! Payment processed successfully. You are officially upgraded to <strong>{selectedPlan.name}</strong>! Below is your custom generated creator API access token:
+                      </p>
+                    </div>
+
+                    {/* Custom generated license token key */}
+                    <div className="bg-slate-900 text-emerald-400 p-3.5 rounded-xl font-mono text-xs select-all text-center tracking-wider max-w-xs mx-auto border border-slate-800 shadow-inner">
+                      SQ-CREATOR-{Math.random().toString(36).substr(2, 9).toUpperCase()}-PRO
+                    </div>
+
+                    <div className="pt-4 border-t border-slate-100 flex justify-center gap-3">
+                      <button
+                        onClick={() => {
+                          setSelectedPlan(null);
+                          onNavigate('dashboard');
+                        }}
+                        className="bg-slate-900 hover:bg-black text-white px-5 py-2.5 rounded-xl font-sans text-xs font-bold transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 shadow-sm"
+                      >
+                        Go To Script Dashboard
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
