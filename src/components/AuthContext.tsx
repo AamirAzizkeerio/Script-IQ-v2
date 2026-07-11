@@ -16,6 +16,7 @@ import {
   serverTimestamp 
 } from 'firebase/firestore';
 import { auth, db, googleProvider, handleFirestoreError, OperationType } from '../firebase';
+import { initializePaddleClient } from '../paddle';
 
 export interface UserProfile {
   uid: string;
@@ -130,6 +131,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (currentUser) {
         setUser(currentUser);
         await syncProfile(currentUser);
+        // Re-initialize Paddle with the signed-in customer so Retain
+        // (dunning / churn recovery) can correctly match this session.
+        initializePaddleClient({ email: currentUser.email || undefined });
       } else {
         setUser(null);
         setProfile(null);
