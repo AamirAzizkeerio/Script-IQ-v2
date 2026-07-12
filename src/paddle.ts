@@ -40,9 +40,15 @@ export function initializePaddleClient(pwCustomer?: PaddleCustomer) {
 export async function openPaddleCheckout(options: {
   priceId: string;
   customerEmail?: string;
+  customerId?: string;
   successUrl?: string;
 }) {
-  const paddle = await initializePaddleClient();
+  // Pass pwCustomer through so Retain can correctly associate this session
+  // with the signed-in customer.
+  const paddle = await initializePaddleClient({
+    id: options.customerId,
+    email: options.customerEmail,
+  });
 
   if (!paddle?.Checkout?.open) {
     return false;
@@ -64,6 +70,7 @@ export async function openCheckout(priceId: string, userEmail?: string, userId?:
   return openPaddleCheckout({
     priceId,
     customerEmail: userEmail,
+    customerId: userId,
     successUrl: `${window.location.origin}/?paddle=success`,
   });
 }
