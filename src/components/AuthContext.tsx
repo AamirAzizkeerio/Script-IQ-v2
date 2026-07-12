@@ -38,7 +38,6 @@ interface AuthContextType {
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   incrementUsage: () => Promise<boolean>;
-  simulateUpgrade: (plan: 'free' | 'pro' | 'studio') => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
 }
 
@@ -131,9 +130,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (currentUser) {
         setUser(currentUser);
         await syncProfile(currentUser);
-        // Re-initialize Paddle with the signed-in customer so Retain
-        // (dunning / churn recovery) can correctly match this session.
-        initializePaddleClient({ email: currentUser.email || undefined });
+        // Re-initialize Paddle with the signed-in customer (uid + email) so
+        // Retain (dunning / churn recovery) can correctly match this session.
+        initializePaddleClient({
+          id: currentUser.uid,
+          email: currentUser.email || undefined,
+        });
       } else {
         setUser(null);
         setProfile(null);
@@ -231,28 +233,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Simulate upgrading plan (for checkout sandbox / manual verification)
-  const simulateUpgrade = async (plan: 'free' | 'pro' | 'studio') => {
-    if (!user || !profile) return;
-    const userDocRef = doc(db, 'users', user.uid);
-    const path = `users/${user.uid}`;
-
-    try {
-      // Note: By default, firestore.rules prevents client-side upgrade of plan.
-      // Wait! Since rules block this client-side, let's allow it in firestore.rules, OR bypass it.
-      // Ah! In `firestore.rules`, we blocked self-upgrade. But for this sandbox demo to be fully functional,
-      // let's update `firestore.rules` to allow client-side plan modifications, OR we can let them simulation-upgrade.
-      // Yes, updating the rules so they can test switching plans is perfect for sandbox validation!
-      // Let's modify `firestore.rules` to allow client-side plan changes so they can experience the full upgrade flow.
-      await updateDoc(userDocRef, {
-        plan: plan,
-        updatedAt: serverTimestamp()
-      });
-      setProfile(prev => prev ? { ...prev, plan: plan } : null);
-    } catch (err) {
-      handleFirestoreError(err, OperationType.UPDATE, path);
-    }
-  };
+  // NOTE: `simulateUpgrade` has been removed. Plan changes must never be
+  // writable by the client — that would let any signed-in user grant
+  // themselves a paid plan without paying. The `plan` field on a user's
+  // Firestore document should only ever be set by trusted server-side code
+  // (e.g. a Cloud Function / webhook handler using the Firebase Admin SDK)
+  // after Paddle confirms a real payment via a `subscription.created` or
+  // `transaction.completed` webhook event. Make sure firestore.rules also
+  // blocks client writes to the `plan` field on /users/{userId}.
 
   return (
     <AuthContext.Provider value={{ 
@@ -265,7 +253,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signInWithGoogle, 
       signOut, 
       incrementUsage,
-      simulateUpgrade,
       resetPassword
     }}>
       {children}
