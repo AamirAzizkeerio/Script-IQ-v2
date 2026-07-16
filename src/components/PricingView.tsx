@@ -22,22 +22,23 @@ import {
 import { PageView } from '../types';
 import { useAuth } from './AuthContext';
 import TestimonialsSection from './TestimonialsSection';
-import { openPaddleCheckout } from '../paddle';
+import { openMeteroidCheckout } from '../meteroid';
 
 interface PricingViewProps {
   onNavigate: (view: PageView) => void;
   density?: 'compact' | 'comfortable';
 }
 
-// Real Paddle Price IDs — map plan id + billing cycle to the actual Paddle price
+// Real Meteroid Price IDs — map plan id + billing cycle to the actual Meteroid price
+// (Meteroid dashboard → Product Catalog → Plans)
 const PRICE_IDS: Record<string, { monthly: string; annual: string }> = {
   creator: {
-    monthly: 'pri_01kwv5b4y178pazf04d4q2g90e',
-    annual: 'pri_01kwv5e5s3scr93xxq5zqk84wg',
+    monthly: 'price_44o0flqwV9WMYByjoMb17V',
+    annual: 'price_3SoNjbniMAR9sHsWTbVOCK',
   },
   agency: {
-    monthly: 'pri_01kwv5m3ndx7rcmfhh7pv8sq55',
-    annual: 'pri_01kwv5prfczvag1knhd4773yfs',
+    monthly: 'price_7lUMjtrWKpjYsQItGttB3l',
+    annual: 'price_1THkTMQ8XGVWhPJpjd1CSD',
   },
 };
 
@@ -57,7 +58,7 @@ export default function PricingView({ onNavigate, density = 'compact' }: Pricing
   const [appliedDiscount, setAppliedDiscount] = useState<number>(0); // percentage, e.g., 20
   const [promoStatus, setPromoStatus] = useState<'idle' | 'valid' | 'invalid'>('idle');
 
-  // State for checkout error handling (Paddle failed to open)
+  // State for checkout error handling (Meteroid failed to open)
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [checkoutLoadingPlanId, setCheckoutLoadingPlanId] = useState<string | null>(null);
 
@@ -191,8 +192,8 @@ export default function PricingView({ onNavigate, density = 'compact' }: Pricing
     }
   };
 
-  // Open real Paddle Checkout. No local fallback that fabricates a payment —
-  // if Paddle can't open, we surface an error instead of granting access.
+  // Open real Meteroid Checkout. No local fallback that fabricates a payment —
+  // if Meteroid can't open, we surface an error instead of granting access.
   const handleOpenCheckout = async (planId: string) => {
     if (planId === 'starter') {
       onNavigate('dashboard');
@@ -212,18 +213,18 @@ export default function PricingView({ onNavigate, density = 'compact' }: Pricing
     setCheckoutLoadingPlanId(planId);
 
     try {
-      const opened = await openPaddleCheckout({
+      const opened = await openMeteroidCheckout({
         priceId,
         customerEmail: user?.email ?? undefined,
         customerId: user?.id ?? undefined,
-        successUrl: `${window.location.origin}/?paddle=success`,
+        successUrl: `${window.location.origin}/?meteroid=success`,
       });
 
       if (!opened) {
         setCheckoutError('We couldn\u2019t open checkout. Please disable any ad blockers and try again, or contact support if the problem continues.');
       }
     } catch (err) {
-      console.error('Paddle checkout failed to open:', err);
+      console.error('Meteroid checkout failed to open:', err);
       setCheckoutError('Something went wrong opening checkout. Please try again.');
     } finally {
       setCheckoutLoadingPlanId(null);
@@ -471,7 +472,7 @@ export default function PricingView({ onNavigate, density = 'compact' }: Pricing
                   </ul>
                 </div>
 
-                {/* Purchase Trigger Button — opens real Paddle checkout, no fake fallback */}
+                {/* Purchase Trigger Button — opens real Meteroid checkout, no fake fallback */}
                 <button
                   id={`purchase-btn-${plan.id}`}
                   onClick={() => void handleOpenCheckout(plan.id)}
