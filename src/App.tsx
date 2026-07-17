@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import { PageView } from './types';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
@@ -271,6 +272,9 @@ export default function App() {
 
       {/* 4. Interactive Cute Robot Companion Guide */}
       <AIPresentationRobot currentView={view} onNavigate={handleNavigation} />
+
+      {/* 5. Vercel Web Analytics */}
+      <Analytics />
     </div>
   );
 }
